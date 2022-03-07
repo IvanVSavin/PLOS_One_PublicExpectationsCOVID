@@ -1,0 +1,1582 @@
+---
+title: "Public expectations about the impact of COVID-19 on climate action by citizens and government"
+author: "Ivan Savin"
+date: "07/03/2022"
+output: word_document
+
+---
+  
+  <style type="text/css">
+  body, td {
+    font-size: 20px;
+  }
+code.r{ / Code block /
+    font-size: 6px;
+}
+</style>
+  
+  
+```{r setup, include=FALSE}
+setwd("D:/Projects/3_CurrentProjects/COVID/STM")
+#install.packages(c("magrittr", "data.table", 'dplyr', 'ggplot2', 'cluster'))
+sapply(c("MASS","DescTools", "magrittr", "data.table", 'plyr','dplyr', 'ggplot2', 'cluster', 'dendextend','pkgbuild','devtools','R.methodsS3','stm','ngram','matrixStats','corrplot','ggpubr','ggplot2'), require, character.only = T)
+
+knitr::opts_chunk$set(fig.width=18, fig.height=10) #18 10
+```
+ 
+ Duration of the survey in seconds and minutes
+```{r, echo=FALSE}
+data <- read.csv('D:/Projects/3_CurrentProjects/COVID/UABSES_195385_20200706.csv', header=T, sep=',')
+# data_oldsara <- read.csv('E:/Projects/3_CurrentProjects/Topic Modelling Climate/Mestre et al/UABSES_158632_20190822_spelling corrected_noaccent.csv', header=T, sep=',')
+# sum(data_copy$CodPanelista %in% data_oldsara$CodPanelista)
+
+data_copy<-data
+data<-data[,c(-1,-3,-4,-5,-7,-8,-9,-10,-11)]#drop irrelevant columns
+
+justloaddata<-1
+
+
+colnames(data)<-c("Response.ID","Duration","Gender","Age","Age.cohort","Region","Education","Number.Inhabitants",
+                  "PostalCode","BORNINPANEL","CBIRTH","CountryofBirth","NewSurveyParticipant",
+                  "Concern_poverty","Concern_water","Concern_climatechange","Concern_terrorism","Concern_economics","Concern_warconflict",
+                  "Concern_pupulation","Concern_nuclear","Concern_infections","Concern_unemployment","Concern_corruption","Concern_migration",
+                  "Concern_discrimination","Concern_biodiversity","Concern_airpollution","Concern_other","Concern_dontknow","Concern_Other",
+                  "COVID_government_close","COVID_government_open","Area_urban_rural", "COVID_people_close","COVID_people_open",
+                  
+                  "Donation_Inter_Covid","Donation_Inter_Climate","Donation_Spanish_Covid","Donation_Spanish_Climate","Donation_self",
+                  "Expected_Donation_Inter_Covid","Expected_Donation_Inter_Climate","Expected_Donation_Spanish_Covid",
+                  "Expected_Donation_Spanish_Climate","Expected_Donation_self","Expected_Donation_Dontknow",
+                    
+                  "Act_Confinement_recycling","Act_Confinement_energyreduction","Act_Confinement_talkaboutclimate",
+                  "Act_Confinement_smallpack","Act_Confinement_greentransport","Act_Confinement_greenfood",
+                  "Act_Confinement_manifest","Act_Confinement_plance",
+
+                  "Act_ConfinementvsPast_recycling","Act_ConfinementvsPast_energyreduction","Act_ConfinementvsPast_talkaboutclimate",
+                  "Act_ConfinementvsPast_smallpack","Act_ConfinementvsPast_greentransport","Act_ConfinementvsPast_greenfood",
+                  "Act_ConfinementvsPast_manifest","Act_ConfinementvsPast_plance",
+
+                  "Act_PastvsFuture_recycling","Act_PastvsFuture_energyreduction","Act_PastvsFuture_talkaboutclimate",
+                  "Act_PastvsFuture_smallpack","Act_PastvsFuture_greentransport","Act_PastvsFuture_greenfood",
+                  "Act_PastvsFuture_manifest","Act_PastvsFuture_plance",
+
+                  "ClimateConcern","ClimateThreat","ClimateExperience",
+                  
+                  "Acceptance_CT","ExpectedAcceptance_CT","ExpectedRejection_CT","ExpectedNeitherNor_CT",
+                  
+                  "ExpectedAcceptance_CO2Limit","ExpectedAcceptance_GasolineStandrads","ExpectedAcceptance_SubsidiesTesla",
+                  "ExpectedAcceptance_DieselBan","ExpectedAcceptance_TrainingCars",
+                  
+                  "Acceptance_CT_PoorHH","Acceptance_CT_Climate","Acceptance_CT_AllHH","Acceptance_CT_Covid",
+                  "BudgetPercent_CT_PoorHH","BudgetPercent_CT_Climate","BudgetPercent_CT_AllHH","BudgetPercent_CT_Covid",
+                  
+                  "PerceivedThreat_Covid","HealthProblems_Covid","HealthProblems_Covid_FamFri","HealthProblems_Covid_FamFri_junk",
+                  
+                  "PaidJob_Covid_Confinement","WorkHome_Covid_Confinement","Productivity_Confinement","Stress_Confinement","HHIncome_Confinement",
+                  "ClimateCausedCovid_statement","OverallExperience_Covid",
+                  
+                  "Evaluation_Government_Covid","Evaluation_Citizens_Covid",
+                  
+                  "GrowthvsEnv_Satisfaction","GrowthvsEnv_EnvProtection","GrowthvsEnv_Stability","GrowthvsEnv_PublucService","GrowthvsEnv_DevSpace",
+                  
+                  "EmploymentStatus","HHIncome_LastYear",
+                  
+                  "InfoExperiment","TYPE_OF_ROTATION","Acceptance_CT_repeat",
+                  
+                  "GrowthvsEnv_Position",
+                  
+                  "Values_Universalism","Values_Benevolence","Values_RespectEarth","Values_ProtectionEnvironment",
+                  
+                  "TrustInPoliticians","PoliticalView","NationalityOther")        
+#summary(data$NewSurveyParticipant)
+#sum(data$NewSurveyParticipant==1)/length(data$NewSurveyParticipant)
+
+#replacingNAs
+data$Education[which(data$Education==99)]<-NA
+data$Number.Inhabitants[which(data$Number.Inhabitants==99)]<-NA
+data$CountryofBirth[which(data$CountryofBirth==99)]<-NA
+data$HealthProblems_Covid[which(data$HealthProblems_Covid==98)]<-NA
+data$HealthProblems_Covid_FamFri[which(data$HealthProblems_Covid_FamFri==98)]<-NA
+data$HHIncome_LastYear[which(data$HHIncome_LastYear==98)]<-NA
+data$PoliticalView[which(data$PoliticalView==99)]<-NA
+data$NationalityOther[which(data$NationalityOther==99)]<-NA
+# > data$HHIncome_LastYearc<-data$HHIncome_LastYear
+# > data$HHIncome_LastYearc[data$HHIncome_LastYear==1]<-500
+# > data$HHIncome_LastYearc[data$HHIncome_LastYear==2]<-1500
+# > data$HHIncome_LastYearc[data$HHIncome_LastYear==3]<-2500
+# > data$HHIncome_LastYearc[data$HHIncome_LastYear==4]<-3500
+# > data$HHIncome_LastYearc[data$HHIncome_LastYear==5]<-4500
+# > mean(data$HHIncome_LastYearc,na.rm=TRUE)
+# [1] 2079.882
+#recoding variables to have meaningful scale
+data$InfoExperiment[which(data$InfoExperiment==2)]<-0
+data$PaidJob_Covid_Confinement[which(data$PaidJob_Covid_Confinement==4)]<-0
+data$WorkHome_Covid_Confinement[which(data$WorkHome_Covid_Confinement==2)]<-0 #no
+data$WorkHome_Covid_Confinement[which(data$WorkHome_Covid_Confinement==1)]<-2 #yes
+data$WorkHome_Covid_Confinement[which(data$WorkHome_Covid_Confinement==3)]<-1 #partially
+
+
+summary(data$Duration)
+summary(data$Duration/60)
+
+
+for (column in c(1:ncol(data))[-c(1,31,33,36)]){
+  data[,column]<-as.numeric(data[,column]) #make sure all numbers are recognized as numbers
+  #data[which(data[,column]==.),column]<-NA #make 8 (no opinion) NA
+}
+# summary(data)
+# 
+# message("SDs of the descriptive variables")
+# sapply(data[,c(1:ncol(data))[-c(1,31,33,36)]], sd, na.rm = TRUE)
+```
+
+Plotting correlation plots of all variables in the survey, and then of the selected covariates only.
+Plus plot histogram of all the selected covariates
+```{r, echo=FALSE}
+#dropping all meaningless/character/withNAs variables
+DataCorrplot<-data[,-c(1,9,10,12,31,33,36,42:47,93:95,97:98,111,113,121:122)]
+
+par(mfrow = c(1, 1) ,mar=c(1,1,1,2))
+M <- cor(DataCorrplot)
+
+col <- colorRampPalette(c( "#4477AA",  "#77AADD", "#FFFFFF","#EE9988","#BB4444"))
+p.mat <- cor.mtest(M)$p
+corrplot(M, method = "color", col = col(200),
+         type = "upper", #order = "hclust", 
+         number.cex = .2,pch.cex = .9,tl.cex = 0.5,
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col = "black", tl.srt = 90, # Text label color and rotation
+         # Combine with significance
+         p.mat = p.mat, sig.level = 0.05, insig = "blank", 
+         # hide correlation coefficient on the principal diagonal
+         diag = FALSE)
+#corrplot(M, method = "circle",tl.cex=.5,tl.col = "black",col=colorRampPalette(c("blue","white","red"))(200))
+
+DataCorrplot_stm<-data[,c(3,4,7,32,35,73,75,92,100,102:104)]
+
+par(mfrow = c(1, 1) ,mar=c(1,1,1,2))
+M <- cor(DataCorrplot_stm)
+
+col <- colorRampPalette(c( "#4477AA",  "#77AADD", "#FFFFFF","#EE9988","#BB4444"))
+p.mat <- cor.mtest(M)$p
+colnames(M)<-c("Gender","Age","Education","Expectations about governmental climate action","Expectations about people’s climate action",         
+ "Perceived threat from climate change","Carbon tax acceptance","Perceived threat from COVID-19","Income change due to confinement",
+ "Overall experience with COVID-19","Evaluation of government fighting COVID-19","Evaluation of citizens fighting COVID-19")
+rownames(M)<-c("Gender","Age","Education","Expectations about governmental climate action","Expectations about people’s climate action",         
+ "Perceived threat from climate change","Carbon tax acceptance","Perceived threat from COVID-19","Income change due to confinement",
+ "Overall experience with COVID-19","Evaluation of government fighting COVID-19","Evaluation of citizens fighting COVID-19")
+corrplot(M, method = "color", col = col(200),
+         type = "upper", #order = "hclust", 
+         number.cex = .75,pch.cex = .9,tl.cex = 0.75,
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col = "black", tl.srt = 90, # Text label color and rotation
+         # Combine with significance
+         p.mat = p.mat, sig.level = 0.05, insig = "blank", 
+         # hide correlation coefficient on the principal diagonal
+         diag = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+#colnames(DataCorrplot_stm)
+
+
+par(mfrow = c(4, 3) ,mar=c(6,4,4,1),cex = 1)
+
+hist(data$Gender, main="Gender", xaxt="n", xlab="")
+axis(1, at=c(1,2), labels=c("Male","Female"), cex.axis=0.9) 
+
+hist(data$Age, main="Age", xlab="", cex.axis=0.9)
+
+hist(data$Education, main="Education",  breaks=c(0,1,2,3,4,5,6,7,8), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5), labels=c(">5ys of studies","primary","secondary","bachillerato",
+                                               "tercer grado","licenciatura","master","doctorado"), cex.axis=0.9,las=2)
+                                                                                 
+hist(data$COVID_government_close, main="Expectations about \n governmental climate action",  breaks=c(0,1,2,3,4,5), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5), labels=c("very negatively","negatively","neutrally","positively","very positively"), cex.axis=0.9,las=2)
+
+hist(data$COVID_people_close, main="Expectations about \n people’s climate action",breaks=c(0,1,2,3,4,5), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5), labels=c("very negatively","negatively","neutrally","positively","very positively"), cex.axis=0.9,las=2) 
+
+hist(data$ClimateThreat, main="Perceived threat \n from climate change",  breaks=c(0,1,2,3,4,5), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5), labels=c("Not at all","Little","Somewhat","Much","Very much"), cex.axis=0.9,las=2)
+
+hist(data$PerceivedThreat_Covid, main="Perceived threat \n from Covid-19",  breaks=c(0,1,2,3,4,5), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5), labels=c("Not at all","Little","Somewhat","Much","Very much"), cex.axis=0.9,las=2)
+
+hist(data$HHIncome_Confinement, main="Income change due to confinement",  breaks=c(0,1,2,3,4,5), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5), labels=c("very negatively","negatively","neutrally","positively","very positively"), cex.axis=0.9,las=2)
+
+hist(data$OverallExperience_Covid, main="Overall experience \n with Covid-19",  breaks=c(0,1,2,3,4,5), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5), labels=c("very negatively","negatively","neutrally","positively","very positively"), cex.axis=0.9,las=2)
+
+hist(data$Evaluation_Government_Covid, main="Evaluation of \n government fighting COVID-19",  breaks=c(0,1,2,3,4,5), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5), labels=c("very \n negatively","negatively","neutrally","positively","very \n positively"), cex.axis=0.9,las=2)
+
+hist(data$Evaluation_Citizens_Covid, main="Evaluation of \n citizens fighting COVID-19",breaks=c(0,1,2,3,4,5), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5), labels=c("very \n negatively","negatively","neutrally","positively","very \n positively"), cex.axis=0.9,las=2) 
+
+hist(data$Acceptance_CT, main="Carbon tax acceptance",breaks=c(0,1,2,3,4,5), xaxt="n", xlab="")
+axis(1, at=c(.5,1.5,2.5,3.5,4.5), labels=c("completely \n unacceptable","somewhat \n unacceptable","neither nor","somewhat \n acceptable","completely \n acceptable"), cex.axis=0.9,las=2) 
+
+
+
+
+
+```
+```{r, echo=FALSE}
+mean(data$Gender)
+sd(data$Gender)
+
+summary(data$Age)
+mean(data$Age)
+sd(data$Age)
+
+summary(data$Education)
+mean(data$Education)
+sd(data$Education)
+
+summary(data$HHIncome_LastYear)
+mean(data$HHIncome_LastYear,na.rm=TRUE)
+sd(data$HHIncome_LastYear,na.rm=TRUE)
+
+summary(data$PoliticalView)
+mean(data$PoliticalView,na.rm=TRUE)
+sd(data$PoliticalView,na.rm=TRUE)
+
+```
+!!! NOW we do data cleaning.
+
+Novelties:
+1. use lemmatization instead of stemming (all words in full)
+2. form bigrams of frequently used pairs of words
+
+Also after deleting stopwords and rare words (that appear in only three answers or less):
+
+```{r, echo=FALSE}
+data$COVID_government_open<-as.character(data$COVID_government_open)
+#Average length of response on economic growth is 1.94 words
+c1<-c()
+for (i in 1:length(data$COVID_government_open)){
+  c1<-c(c1,wordcount(data$COVID_government_open[i]))}
+
+
+data$COVID_people_open<-as.character(data$COVID_people_open)
+#Average length of response on economic growth is 1.94 words
+c2<-c()
+for (i in 1:length(data$COVID_people_open))
+{c2<-c(c2,wordcount(data$COVID_people_open[i]))}
+par(mfrow = c(2, 1) ,mar=c(4,4,2,1))
+
+hist(c1,breaks=max(c1), main="",
+     xlab="# of words",ylim=c(1,max(c2)), xlim = c(1,max(c1)),cex = 1.5)
+summary(c1)
+
+
+hist(c2,breaks=180, main="",
+     xlab="# of words",ylim=c(1,max(c2)), xlim = c(1,max(c1)),cex = 1.5)
+summary(c2)
+
+
+
+if (justloaddata==0){
+library("textcat")
+if (!require("pacman")) install.packages("pacman") # for package manangement
+pacman::p_load("tidyverse") 
+pacman::p_load("cld2")
+pacman::p_load("cld3")
+
+data_language <- data %>% mutate(textcat = textcat(x = COVID_government_open), cld2 = cld2::detect_language(text = COVID_government_open, plain_text = FALSE), cld3 = cld3::detect_language(text = COVID_government_open)) %>% select(COVID_government_open, textcat, cld2, cld3)
+View(data_language)
+
+data_language$question<-matrix(0,length(data$COVID_government_open),1)
+data_language$question[which(data_language$cld2 != "es" | data_language$cld3 != "es" | is.na(data_language$cld2) | is.na(data_language$cld3))]<-1
+sum(data_language$question)
+#data$Description[which(data_language$question==1)]
+table(data_language$cld2)
+table(data_language$cld3)
+
+data_language2 <- data %>% mutate(textcat = textcat(x = COVID_people_open), cld2 = cld2::detect_language(text = COVID_people_open, plain_text = FALSE), cld3 = cld3::detect_language(text = COVID_people_open)) %>% select(COVID_people_open, textcat, cld2, cld3)
+View(data_language2)
+
+data_language2$question2<-matrix(0,length(data$COVID_people_open),1)
+data_language2$question2[which(data_language2$cld2 != "es" | data_language2$cld3 != "es" | is.na(data_language2$cld2) | is.na(data_language2$cld3))]<-1
+sum(data_language2$question2)
+table(data_language2$cld2)
+table(data_language2$cld3)
+
+data_language<-cbind(data_language,data_language2)
+summary(data_language)
+
+library("writexl")
+con<-file('data_language',encoding="UTF-8")
+write_xlsx(data_language,"open_questions.xlsx")
+write.csv(data_language,"open_questions.csv",fileEncoding = "ISO-8859-1")
+
+}
+#Sys.setlocale("LC_ALL", "ES_ES.UTF-8")
+# data_lemmatized <- read.csv('E:/Projects/3_CurrentProjects/COVID/open_questions_nt.csv', header=T, sep=';',encoding = "utf-8-sig")
+# data_lemmatized <- read.csv('E:/Projects/3_CurrentProjects/COVID/open_questions_nt.csv', header=T, sep=';',encoding = "cp1252")
+# data_lemmatized <- read.csv('E:/Projects/3_CurrentProjects/COVID/open_questions_nt.csv', header=T, sep=';')
+data_lemmatized <- read.csv('D:/Projects/3_CurrentProjects/COVID/STM/open_questions_nt3.csv', header=T, sep=';',encoding = "UTF-8")
+#head(data_lemmatized)
+
+data$COVID_government_open_lemm<-as.character(data_lemmatized$COVID_government_open_clean)
+data$COVID_people_open_lemm<-as.character(data_lemmatized$COVID_people_open_clean)
+data$COVID_people_open_lemm<-data$COVID_people_open_lemm[order(2200:1)]
+
+c1_lemm<-c()
+for (i in 1:length(data$COVID_government_open_lemm)){
+  c1_lemm<-c(c1_lemm,wordcount(data$COVID_government_open_lemm[i]))}
+
+
+c2_lemm<-c()
+for (i in 1:length(data$COVID_people_open_lemm))
+{c2_lemm<-c(c2_lemm,wordcount(data$COVID_people_open_lemm[i]))}
+
+par(mfrow = c(2, 1) ,mar=c(4,4,4,1))
+
+# hist(c1_lemm,breaks=max(c1), main="Length of responses on first open question \n How Covid-19 affected actions of \n government wrt climate change",
+#      xlab="# of words", xlim = c(1,max(c1_lemm)))
+# summary(c1_lemm)
+# 
+# hist(c2_lemm,breaks=max(c2_lemm), main="Length of responses on second open question \n How Covid-19 affected actions of \n people wrt climate change",
+#      xlab="# of words", xlim = c(1,max(c1_lemm)))
+# summary(c2_lemm)
+
+#data<-read_xlsx("startups_short_lang.xlsx")
+
+# library(textstem)
+# data$COVID_government_open_lemm <- lemmatize_strings(data$COVID_government_open)
+# data$COVID_government_open_stem <- stem_strings(data$COVID_government_open)
+# 
+# head(data$COVID_government_open)
+# head(data$COVID_government_open_lemm) 
+# head(data$COVID_government_open_stem)
+```
+printing 100 most frequent words from the first question
+
+```{r, echo=FALSE}
+#library(stopwords)
+#stopwords(language="es", source = "snowball") 
+threshold_filter<-3
+DataCorrplot_stm_1<-DataCorrplot_stm#[,-c(5,12)]
+DataCorrplot_stm_1$Response.ID<-data$Response.ID
+DataCorrplot_stm_1$control<-data_lemmatized$question
+DataCorrplot_stm_1$original<-data_lemmatized$COVID_government_open
+
+
+#stemming/stopword removal/setting to lower case letters/discarding words shorter than 3 characters, etc.
+processed <- textProcessor(data$COVID_government_open_lemm, metadata=DataCorrplot_stm_1,
+                           stem = FALSE,
+                           removenumbers = FALSE,
+                           removestopwords = FALSE,
+                           removepunctuation = FALSE,
+                           lowercase=FALSE,
+                           language="spanish", verbose=TRUE)
+
+#structure and index for usage in the stm model. Verify no-missingness.
+out <- prepDocuments(processed$documents, processed$vocab, processed$meta,
+                     lower.thresh=threshold_filter) #changing the lower threshold to 3 (not 5) terms to have more data
+#output will have object meta, documents, and vocab
+
+#AFTER SETMMING
+# Removing 3308 of 4143 terms (4368 of 18931 tokens) due to frequency 
+# Removing 46 Documents with No Words 
+# Your corpus now has 2098 documents, 835 terms and 14563 tokens.
+
+#AFTER LEMMATIZING & 3x threshold
+# Removing 2380 of 3114 terms (3137 of 20507 tokens) due to frequency 
+# Removing 26 Documents with No Words 
+# Your corpus now has 2120 documents, 734 terms and 17370 tokens.
+
+#AFTER LEMMATIZING & 5x threshold
+# Removing 2579 of 3114 terms (4007 of 20507 tokens) due to frequency 
+# Removing 37 Documents with No Words 
+# Your corpus now has 2109 documents, 535 terms and 16500 tokens.
+
+docs <- out$documents
+vocab <- out$vocab
+meta <-out$meta
+vocab_app<-out$vocab
+junk<-out$wordcounts[out$wordcounts>threshold_filter]
+freq_vocab<-out$wordcounts[out$wordcounts>threshold_filter]#table(unlist(out$documents))
+vocab_app<-vocab_app[order(freq_vocab,decreasing = TRUE)]
+list_frequent_words<-data.frame(vocab_app,sort(freq_vocab,decreasing = TRUE))
+
+#top most frequent words
+print(list_frequent_words[1:100,])
+#meta$original[which(meta$control==1)]
+# save workspace before model runs
+# save workspace before model runs
+# save(list = ls(all = TRUE), file = "preparedData.RData")
+# 
+# load("preparedData.RData")
+
+
+if (justloaddata==0){
+storage<-searchK(out$documents, out$vocab, K = seq(3,20),
+                 prevalence =~ meta$Age + meta$Gender + meta$Education +
+                   meta$ClimateThreat +  meta$PerceivedThreat_Covid + 
+                   meta$OverallExperience_Covid + 
+                   meta$HHIncome_Confinement + 
+                   meta$Acceptance_CT + 
+                   meta$COVID_government_close + meta$Evaluation_Government_Covid, 
+                 data = out$meta,
+                 heldout.seed =5926696,init.type="Spectral",
+                 M=30,#number of keywords per topic to calculate exclusivity
+                 #N = floor(0.2 *length(out$documents)),#increase the held-out log likelihood
+                 max.em.its=1000 #max number of iterations per model)
+)
+save(storage, file = "STM_calibration1_50_v2.RData")
+}
+
+```
+
+selecting 13 topics for the first question
+```{r, echo=FALSE}
+load("STM_calibration1_50_v2.RData")
+
+Kchoice<-13#21 vs 31
+
+
+# par(mfrow = c(1, 3) ,mar=c(4,4,1,2)) 
+# plot(storage$results$heldout,ylab="Heldout log-likelihood",xlab="",xaxt="n",col=ifelse(storage$results$K %in% Kchoice, 'red', 'blue'))
+# axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+# plot(storage$results$exclus,ylab="Exclusivity",xlab="Number of Topics",xaxt="n",col=ifelse(storage$results$K %in% Kchoice, 'red', 'blue'))
+# axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+# plot(storage$results$semcoh,ylab="Semantic coherence",xlab="",xaxt="n",col=ifelse(storage$results$K %in% Kchoice, 'red', 'blue'))
+# axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+
+par(mfrow = c(1, 3) ,mar=c(4,4,1,2),cex = 1.5) 
+plot(storage$results$heldout[1:18],ylab="Heldout log-likelihood",xlab="",xaxt="n",col=ifelse(storage$results$K %in% Kchoice, 'red', 'blue'))
+axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+plot(storage$results$exclus[1:18],ylab="Exclusivity",xlab="Number of Topics",xaxt="n",col=ifelse(storage$results$K %in% Kchoice, 'red', 'blue'))
+axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+plot(storage$results$semcoh[1:18],ylab="Semantic coherence",xlab="",xaxt="n",col=ifelse(storage$results$K %in% Kchoice, 'red', 'blue'))
+axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+```
+
+printing the prevalences of topics (summing up to 1), their most frequent and exclusive words
+```{r, echo=FALSE}
+
+if (justloaddata==0){
+ncpSelect2 <- selectModel(out$documents, out$vocab, K = Kchoice,
+                 prevalence =~ meta$Age + meta$Gender + meta$Education + meta$ClimateThreat + meta$PerceivedThreat_Covid + meta$OverallExperience_Covid + meta$HHIncome_Confinement + meta$Acceptance_CT + meta$COVID_government_close + meta$Evaluation_Government_Covid, 
+                 data = out$meta,
+                 runs=5,
+                 seed =5926696,
+                 init.type="Spectral",
+                 M=30,#number of keywords per topic to calculate exclusivity
+                 #N = floor(0.2 *length(out$documents)),#increase the held-out log likelihood
+                 max.em.its=1000,
+                          verbose=TRUE) 
+                          
+save(ncpSelect2, file = "STM_calibration1_v3.RData")
+}
+load("STM_calibration1_v3.RData")
+
+
+#put topic labels here
+tiopiclabel<-as.character(matrix(0,Kchoice,1))
+tiopiclabel[1]<-"1T1: Insufficient resources for climate"
+tiopiclabel[2]<-"1T2: COVID-19 and climate change are independent"
+tiopiclabel[3]<-"1T3: Priority for  COVID-19"
+tiopiclabel[4]<-"1T4: Government responds inadequately to COVID-19"
+tiopiclabel[5]<-"1T5: COVID-19 distracts from climate" #and not climate change
+tiopiclabel[6]<-"1T6: Self-interested politicians"
+tiopiclabel[7]<-"1T7: COVID-19 adds to waste"
+tiopiclabel[8]<-"1T8: Teleworking and less travel"
+tiopiclabel[9]<-"1T9: Priority for economy and health"
+tiopiclabel[10]<-"1T10: Spend climate money on COVID-19"
+tiopiclabel[11]<-"1T11: Government makes bad decisions"
+tiopiclabel[12]<-"1T12: People stay at home and pollute less"
+tiopiclabel[13]<-"1T13: COVID-19 is environmental wake-up call"
+# tiopiclabel[14]<-"T14: ..."
+# tiopiclabel[15]<-"T15: ..."
+# tiopiclabel[16]<-"T16: ..
+
+ncpPrevFit_covid1<- ncpSelect2$runout[[1]]
+#exclusivity(ncpPrevFit_ecogrowth, M = 10, frexw = 0.7)
+# Save workspace after model runs
+#save(list = ls(all = TRUE), file = "preparedModels-EcoGrowth-stm-pub4.RData")
+#make.dt(ncpPrevFit_climpolicy)
+plot(ncpPrevFit_covid1, type="summary", main="",custom.labels=tiopiclabel)
+
+colSums(ncpPrevFit_covid1$theta)/sum(ncpPrevFit_covid1$theta)
+par(mfrow = c(1, 1), cex=1.5)
+plot(ncpPrevFit_covid1, type="labels", labeltype="frex",text.cex = .6,n=10)
+
+
+# par(mfrow = c(1, 1) ,mar=c(1,1,1,1)) 
+# plot(ncpPrevFit_covid1, type="hist")
+
+dd<-ncpPrevFit_covid1$vocab
+vocab_app<-out$vocab
+junk<-out$wordcounts[out$wordcounts>threshold_filter]
+freq_vocab<-out$wordcounts[out$wordcounts>threshold_filter]#table(unlist(out$documents))
+vocab_app<-vocab_app[order(freq_vocab,decreasing = TRUE)]
+
+logbeta<-ncpPrevFit_covid1$beta$logbeta[[1]]
+word_prob<-exp(logbeta)
+word_attribute<-sapply(1:dim(word_prob)[2], function(y) which(word_prob[,y]==max(word_prob[,y])))
+#print(out$vocab)
+word_prob_sorted<-word_prob[,order(freq_vocab,decreasing = TRUE)]
+word_attribute_sorted<-word_attribute[order(freq_vocab,decreasing = TRUE)]
+aa<-data.frame(vocab_app,sort(freq_vocab,decreasing = TRUE),t(word_prob_sorted),word_attribute_sorted)
+write.csv(aa, "vocabulary.csv")
+
+####
+# Analysis on chosen model run 
+# Table 1: most frequent and exclusive terms (FREX): 
+#label<-labelTopics(ncpPrevFit_ecogrowth, topics=NULL, n=10)
+labelTopics(ncpPrevFit_covid1, topics=NULL, n=10)
+# labelTopics(ncpPrevFit_covid1, topics=NULL, n=Kchoice)$prob
+# labelTopics(ncpPrevFit_covid1, topics=NULL, n=Kchoice)$frex
+
+dt.proportions_question1<-cbind(meta$Response.ID, make.dt(ncpPrevFit_covid1))
+meta_1<-meta
+```
+
+printing 10 most illustrative responses per topic
+```{r, echo=FALSE}
+
+# for (topic_i in 1){
+#   for (thought_i in 1:20){
+#     c<-vocab[docs[findThoughts(ncpPrevFit_climpolicy, texts=meta$Text.CarbonTaxPolicy, n=20,topics=topic_i)$index[[1]]][[thought_i]][1,]]
+#     print(c)
+#   }
+# }
+
+meta$original<-as.character(meta$original)
+# Table 2: responses that are highly associated with topics
+nk<-10
+for (ci in 1:Kchoice){
+  cii<-ci+1
+  thoughts1<-findThoughts(ncpPrevFit_covid1, texts=meta$original, n=nk, topics=ci)$docs[[1]]
+  topic_proportions<-as.matrix(make.dt(ncpPrevFit_covid1))[findThoughts(ncpPrevFit_covid1, texts=meta$original, n=nk,topics=ci)$index[[1]],cii]
+  
+  message("10 representative responses with high prevalence together with the values of those prevalences and words being   analyzed (i.e. excluding rare words dropped out from analysis) of Topic :")
+  print(ci)
+  print(thoughts1[1:nk])
+   print(topic_proportions)
+}
+
+```
+```{r, echo=FALSE}
+
+vocab_valence_public <- read.csv("vocabulary1_translated_corrected.csv", header=T, sep=",")
+
+sort_index<-sapply(1:length(out$vocab), function(x) which(vocab_valence_public$vocab_app==out$vocab[x]))
+
+vocab_valence_public$English.translation_sorted<-vocab_valence_public$English.translation[sort_index]
+
+vocab_valence_public<-data.frame(out$vocab,vocab_valence_public$English.translation_sorted)
+
+
+ncpPrevFit_covid1_translated<-ncpPrevFit_covid1
+ncpPrevFit_covid1_translated$vocab<-vocab_valence_public$vocab_valence_public.English.translation_sorted
+
+
+logbeta<-ncpPrevFit_covid1$beta$logbeta[[1]]
+word_prob<-exp(logbeta)
+word_attribute<-sapply(1:dim(word_prob)[2], function(y) which(word_prob[,y]==max(word_prob[,y])))
+#print(out$vocab)
+ 
+# Figures
+# Co-variation with demographics and concern
+# Generate education binary: university or not
+# univdummy <- as.numeric(meta$edu3==3)
+# print(univdummy)  
+# summary(univdummy)
+# table(meta$edu3, univdummy)
+# meta$univdummy <- univdummy
+
+# meta$age<- as.numeric(meta$age)
+#following https://github.com/bstewart/stm/blob/master/R/labelTopics.R
+
+logbeta <- ncpPrevFit_covid1$beta$logbeta[[1]]
+wordcounts <- ncpPrevFit_covid1$dim$wcounts$x
+frexlabels <-calcfrex(logbeta, 0, wordcounts)
+problabels<-apply(logbeta, 1, order, decreasing=TRUE)
+# set.seed(1234)
+# wordcloud(words = out$vocab, freq = problabels[,1],scale=c(3,.1), min.freq = 0,
+#           max.words=20, random.order=FALSE, rot.per=0.5,
+#           colors=frexlabels[,1]) 
+# shadesOfGrey <- colorRampPalette(c("grey0", "grey100"))
+# fiftyGreys <- shadesOfGrey(length(out$vocab))
+nb.cols <- length(out$vocab)
+# threshold<-15
+# mycolors <- c(rep("#FFFFE5",length(out$vocab)-threshold),colorRampPalette(brewer.pal(8, "YlOrBr"))(threshold)) #heat.colors(10) rev(heat.colors(50))
+threshold<-100
+mycolors <- c(rep("#FFFFE5",length(out$vocab)-threshold),colorRampPalette(rev(heat.colors(100)))(threshold)) #heat.colors(10) rev(heat.colors(50))
+
+pal<-colorRampPalette(c("blue", "red"))
+mycolorsRB<-c(rep("darkblue",length(out$vocab)-threshold),pal(threshold))
+
+vec<-matrix(0,length(out$vocab),Kchoice)
+for (j in 1:Kchoice){
+  jj<-length(out$vocab)
+  for (i in 1:length(out$vocab)){
+    vec[frexlabels[i,j],j]<-jj
+    jj<-jj-1
+  }
+}
+
+par(mfrow = c(4, 4) ,mar=c(1,2,1,1)) 
+add_vector<-colSums(ncpPrevFit_covid1$theta)/sum(ncpPrevFit_covid1$theta)*10#c(0,0,0,1)
+equal_vector<-matrix(mean(add_vector),Kchoice,1)*1.9#c(0,0,0,1)
+
+#vector to normalize fonts between wordclouds
+# set.seed(1)
+# for (ci in 1:Kchoice){
+# cloud(ncpPrevFit_covid1, topic = ci, max.words = 30,scale=c(3,.1)*add_vector[ci],rot.per=0,random.order=FALSE)#,colors=fiftyGreys[frexlabels[,1]])
+# title(tiopiclabel[ci])
+# }
+# par(mfrow = c(4, 4) ,mar=c(1,2,1,1)) 
+# set.seed(1)
+# for (ci in 1:Kchoice){
+# cloud(ncpPrevFit_covid1, topic = ci, max.words = 30,scale=c(3,.1)*equal_vector[ci],rot.per=0,random.order=FALSE)#,colors=fiftyGreys[frexlabels[,1]])
+# title(tiopiclabel[ci])
+# }
+
+library(stm)
+set.seed(1)
+par(mfrow = c(5, 3) ,mar=c(1,2,1,1)) 
+for (ci in 1:Kchoice){
+cloud(ncpPrevFit_covid1, topic = ci, max.words = 30,scale=c(1.5,.3)*add_vector[ci],colors=mycolors[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+title(tiopiclabel[ci],font.main= 1)
+box("figure", col="black", lwd = 5)
+}
+par(mfrow = c(5, 3) ,mar=c(1,2,1,1)) 
+set.seed(1)
+for (ci in 1:Kchoice){
+cloud(ncpPrevFit_covid1, topic = ci, max.words = 30,scale=c(1.5,.3)*equal_vector[ci],colors=mycolors[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+title(tiopiclabel[ci],font.main= 1)
+box("figure", col="black", lwd = 5)
+}
+
+equal_vector<-equal_vector+c(.3,.3,.1,1,.3,.2,1,0,.3,0,.3,.3,1)
+par(mfrow = c(3, 5) ,mar=c(1,2,1,1)) 
+set.seed(1)
+for (ci in 1:Kchoice){
+cloud(ncpPrevFit_covid1_translated, topic = ci, max.words = 30,scale=c(1.5,.3)*equal_vector[ci]*1.7,colors=mycolors[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+title(tiopiclabel[ci],font.main= 2)
+box("figure", col="black", lwd = 2)
+}
+# set.seed(1)
+# par(mfrow = c(4, 4) ,mar=c(1,2,1,1)) 
+# for (ci in 1:Kchoice){
+# cloud(ncpPrevFit_covid1, topic = ci, max.words = 30,scale=c(3,.1)*add_vector[ci],colors=mycolorsRB[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+# title(tiopiclabel[ci])
+# box("figure", col="black", lwd = 5)
+# }
+# par(mfrow = c(4, 4) ,mar=c(1,2,1,1)) 
+# set.seed(1)
+# for (ci in 1:Kchoice){
+# cloud(ncpPrevFit_covid1, topic = ci, max.words = 30,scale=c(3,.1)*equal_vector[ci],colors=mycolorsRB[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+# title(tiopiclabel[ci])
+# box("figure", col="black", lwd = 5)
+# }
+```
+
+printing the regression model and visualizing it
+```{r, echo=FALSE}
+
+
+library(caret)
+ViF1<-matrix(0,10,13)
+for (topic_id in 1:13){
+  model1 <- lm(ncpPrevFit_covid1$theta[,1] ~Age + Gender + Education +ClimateThreat +  PerceivedThreat_Covid + OverallExperience_Covid + HHIncome_Confinement + Acceptance_CT + COVID_government_close + Evaluation_Government_Covid, data = meta)
+  summary(model1)
+  ViF1[,topic_id]<-car::vif(model1)
+}
+# Figure 1: Topical prevalence over co-variates
+prep <- estimateEffect(1:Kchoice ~ Age + Gender + Education +ClimateThreat +  PerceivedThreat_Covid + OverallExperience_Covid + HHIncome_Confinement + Acceptance_CT + COVID_government_close + Evaluation_Government_Covid,
+                         #Age,#+meta$Perceived.CarbonTaxKnowledge +meta$CT.Acceptability, 
+                       ncpPrevFit_covid1,
+                       meta=meta, 
+                       uncertainty = "Global")
+
+summary(prep)
+
+colors_topics<-c("indianred4","blue","magenta","orange","red","cyan","lawngreen","yellow","forestgreen","darkslateblue","olivedrab","khaki4","coral","grey","aquamarine","bisque")
+```
+
+plot only topics significant at 1% level
+COVID_government_close is significant at 1% for ALL topics
+```{r, echo=FALSE}
+
+# ClimateThreat +  PerceivedThreat_Covid + OverallExperience_Covid + HHIncome_Confinement + Acceptance_CT + COVID_government_close + Evaluation_Government_Covid
+
+par(mfrow = c(2, 4) ,mar=c(4,4,1,2),cex = 1.05)
+plot.estimateEffect(prep,
+                    xlab="Age",
+                    covariate = "Age",
+                    topics = c(8,9,11,12),
+                    model=ncpPrevFit_covid1,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(8,9,11,12)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.2),
+                    linecol=colors_topics[c(8,9,11,12)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+
+)
+
+
+plot.estimateEffect(prep,
+                    xlab="Gender",
+                    covariate = "Gender",
+                    topics = c(1,2,7,8,9),
+                    model=ncpPrevFit_covid1,
+                    method="difference",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(1,2,7,8,9)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    cov.value1 = 1,cov.value2 = 2,
+                    xlim=c(-0.1,0.05),
+                    linecol=colors_topics[c(1,2,7,8,9)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+
+
+
+plot.estimateEffect(prep,
+                    xlab="Education",
+                    covariate = "Education",
+                    topics = c(1,4,6,8,9,10,11),
+                    model=ncpPrevFit_covid1,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(1,4,6,8,9,10,11)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.2),
+                    linecol=colors_topics[c(1,4,6,8,9,10,11)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+plot.estimateEffect(prep,
+                    xlab="Threat from climate change",
+                    covariate = "ClimateThreat",
+                    topics = c(2,11),
+                    model=ncpPrevFit_covid1,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(2,11)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.2),
+                    linecol=colors_topics[c(2,11)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+plot.estimateEffect(prep,
+                    xlab="Threat from COVID-19",
+                    covariate = "PerceivedThreat_Covid",
+                    topics = c(11),
+                    model=ncpPrevFit_covid1,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(11)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.2),
+                    linecol=colors_topics[c(11)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+plot.estimateEffect(prep,
+                    xlab="Experience with COVID-19",
+                    covariate = "OverallExperience_Covid",
+                    topics = c(8),
+                    model=ncpPrevFit_covid1,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(8)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.2),
+                    linecol=colors_topics[c(8)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+plot.estimateEffect(prep,
+                    xlab="Income change",
+                    covariate = "HHIncome_Confinement",
+                    topics = c(1,7),
+                    model=ncpPrevFit_covid1,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(1,7)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.2),
+                    linecol=colors_topics[c(1,7)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+plot.estimateEffect(prep,
+                    xlab="Carbon tax acceptance",
+                    covariate = "Acceptance_CT",
+                    topics = c(3,4,6,9,11),
+                    model=ncpPrevFit_covid1,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(3,4,6,9,11)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.2),
+                    linecol=colors_topics[c(3,4,6,9,11)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+plot.estimateEffect(prep,
+                    xlab="COVID_government_close",
+                    covariate = "COVID_government_close",
+                    topics = c(1:Kchoice),
+                    model=ncpPrevFit_covid1,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(1:Kchoice)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.2),
+                    linecol=colors_topics[c(1:Kchoice)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+plot.estimateEffect(prep,
+                    xlab="Evaluation_Government_Covid",
+                    covariate = "Evaluation_Government_Covid",
+                    topics = c(1,4,5,10,11,12),
+                    model=ncpPrevFit_covid1,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel[c(1,4,5,10,11,12)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.2),
+                    linecol=colors_topics[c(1,4,5,10,11,12)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+```
+
+
+
+
+
+
+
+
+
+
+Now let us look on the second open question.
+After cleaning hte date, we are left with 2143 responses, 447 terms and 13651 tokens.
+
+i.e. 57 answers filtered out either due to now rod present, or no word other than stopword or word appearing at lest 6 times was given
+```{r, echo=FALSE}
+### SECOND OPEN QUESTION
+#threshold_filter<-3
+DataCorrplot_stm_2<-DataCorrplot_stm#[,-c(4,11)]
+DataCorrplot_stm_2$control<-data_lemmatized$question2revised[order(2200:1)]
+DataCorrplot_stm_2$original<-data_lemmatized$COVID_people_openrevised2[order(2200:1)]
+DataCorrplot_stm_2$Response.ID<-data$Response.ID
+#stemming/stopword removal/setting to lower case letters/discarding words shorter than 3 characters, etc.
+processed <- textProcessor(data$COVID_people_open_lemm, metadata=DataCorrplot_stm_2,
+                           stem = FALSE,
+                           removenumbers = FALSE,
+                           removestopwords = FALSE,
+                           removepunctuation = FALSE,
+                           lowercase=FALSE,
+                           language="spanish", verbose=TRUE)
+
+
+#structure and index for usage in the stm model. Verify no-missingness.
+out <- prepDocuments(processed$documents, processed$vocab, processed$meta,
+                     lower.thresh=threshold_filter) #changing the lower threshold to 3 (not 5) terms to have more data
+#output will have object meta, documents, and vocab
+
+
+#AFTER LEMMATIZING & 5x threshold
+# Removing 1716 of 2222 terms (2699 of 15115 tokens) due to frequency 
+# Removing 43 Documents with No Words 
+# Your corpus now has 2137 documents, 506 terms and 12416 tokens.
+
+docs <- out$documents
+vocab <- out$vocab
+meta <-out$meta
+vocab_app<-out$vocab
+junk<-out$wordcounts[out$wordcounts>threshold_filter]
+freq_vocab2<-out$wordcounts[out$wordcounts>threshold_filter]#table(unlist(out$documents))
+vocab_app2<-vocab_app[order(freq_vocab2,decreasing = TRUE)]
+list_frequent_words2<-data.frame(vocab_app2,sort(freq_vocab2,decreasing = TRUE))
+# save workspace before model runs
+# save workspace before model runs
+
+#top most frequent words
+print(list_frequent_words2[1:100,])
+
+#meta$original[which(meta$control==1)]
+
+# save(list = ls(all = TRUE), file = "preparedData2.RData")
+# 
+# load("preparedData2.RData")
+
+
+if (justloaddata==0){
+  storage2<-searchK(out$documents, out$vocab, K = seq(3,20),
+                   prevalence =~ meta$Age + meta$Gender + meta$Education +
+                     meta$ClimateThreat +  meta$PerceivedThreat_Covid + 
+                     meta$OverallExperience_Covid + 
+                     meta$HHIncome_Confinement + 
+                     meta$Acceptance_CT + 
+                     meta$COVID_people_close + meta$Evaluation_Citizens_Covid, 
+                   data = out$meta,
+                   heldout.seed =5926696,init.type="Spectral",
+                   M=30,#number of keywords per topic to calculate exclusivity
+                   #N = floor(0.2 *length(out$documents)),#increase the held-out log likelihood
+                   max.em.its=1000 #max number of iterations per model)
+  )
+  save(storage2, file = "STM_calibration2_50_v2_bf.RData")
+}
+
+```
+
+
+here we decide for 12 topics
+```{r, echo=FALSE}
+load("STM_calibration2_50_v2_bf.RData")
+Kchoice2<-12#21 vs 31
+
+
+# par(mfrow = c(1, 3) ,mar=c(4,4,1,2)) 
+# plot(storage$results$heldout,ylab="Heldout log-likelihood",xlab="",xaxt="n",col=ifelse(storage$results$K %in% Kchoice, 'red', 'blue'))
+# axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+# plot(storage$results$exclus,ylab="Exclusivity",xlab="Number of Topics",xaxt="n",col=ifelse(storage$results$K %in% Kchoice, 'red', 'blue'))
+# axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+# plot(storage$results$semcoh,ylab="Semantic coherence",xlab="",xaxt="n",col=ifelse(storage$results$K %in% Kchoice, 'red', 'blue'))
+# axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+
+
+par(mfrow = c(1, 3) ,mar=c(4,4,1,2), cex=1.5) 
+plot(storage2$results$heldout[1:18],ylab="Heldout log-likelihood",xlab="",xaxt="n",col=ifelse(storage$results$K %in% Kchoice2, 'red', 'blue'))
+axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+plot(storage2$results$exclus[1:18],ylab="Exclusivity",xlab="Number of Topics",xaxt="n",col=ifelse(storage$results$K %in% Kchoice2, 'red', 'blue'))
+axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+plot(storage2$results$semcoh[1:18],ylab="Semantic coherence",xlab="",xaxt="n",col=ifelse(storage$results$K %in% Kchoice2, 'red', 'blue'))
+axis(1, at=1:length(storage$results$K), labels=storage$results$K)
+```
+
+```{r, echo=FALSE}
+
+if (justloaddata==0){
+ncpSelect2 <- selectModel(out$documents, out$vocab, K = Kchoice2,
+                 prevalence =~ meta$Age + meta$Gender + meta$Education + meta$ClimateThreat + meta$PerceivedThreat_Covid + meta$OverallExperience_Covid + meta$HHIncome_Confinement + meta$Acceptance_CT + meta$COVID_people_close + meta$Evaluation_Citizens_Covid, 
+                 data = out$meta,
+                 runs=5,
+                 seed =5926696,
+                 init.type="Spectral",
+                 M=30,#number of keywords per topic to calculate exclusivity
+                 #N = floor(0.2 *length(out$documents)),#increase the held-out log likelihood
+                 max.em.its=1000,
+                          verbose=TRUE) 
+                          
+save(ncpSelect2, file = "STM_calibration2_v3_12_bf.RData")
+}
+load("STM_calibration2_v3_12_bf.RData")
+
+
+#put topic labels here
+tiopiclabel2<-as.character(matrix(0,Kchoice2,1))
+tiopiclabel2[1]<-"2T1: More awareness and less consumption"
+tiopiclabel2[2]<-"2T2: People act as before"
+tiopiclabel2[3]<-"2T3: Priority for economy and health"
+tiopiclabel2[4]<-"2T4: Lack of government support"
+tiopiclabel2[5]<-"2T5: Confinement fosters environmental care"
+tiopiclabel2[6]<-"2T6: Change is inevitable"
+tiopiclabel2[7]<-"2T7: Old habits die hard"
+tiopiclabel2[8]<-"2T8: People are myopic"
+tiopiclabel2[9]<-"2T9: COVID-19 adds to waste"
+tiopiclabel2[10]<-"2T10: People are occupied by other problems"
+tiopiclabel2[11]<-"2T11: Teleworking and less travel"
+tiopiclabel2[12]<-"2T12: People consume more responsibly"
+# tiopiclabel2[13]<-"T13: ..."
+# tiopiclabel2[14]<-"T14: ..."
+
+
+ncpPrevFit_covid2 <- ncpSelect2$runout[[1]]
+#exclusivity(ncpPrevFit_ecogrowth, M = 10, frexw = 0.7)
+# Save workspace after model runs
+#save(list = ls(all = TRUE), file = "preparedModels-EcoGrowth-stm-pub4.RData")
+#make.dt(ncpPrevFit_climpolicy)
+plot(ncpPrevFit_covid2, type="summary", main="",custom.labels=tiopiclabel2)
+
+colSums(ncpPrevFit_covid2$theta)/sum(ncpPrevFit_covid2$theta)
+par(mfrow = c(1, 1), cex=1.5)
+plot(ncpPrevFit_covid2, type="labels", labeltype="frex",text.cex = .45,n=10)
+
+
+# par(mfrow = c(1, 1) ,mar=c(1,1,1,1)) 
+# plot(ncpPrevFit_covid2, type="hist")
+
+dd<-ncpPrevFit_covid2$vocab
+vocab_app<-out$vocab
+junk<-out$wordcounts[out$wordcounts>threshold_filter]
+freq_vocab<-out$wordcounts[out$wordcounts>threshold_filter]#table(unlist(out$documents))
+vocab_app<-vocab_app[order(freq_vocab,decreasing = TRUE)]
+
+logbeta<-ncpPrevFit_covid2$beta$logbeta[[1]]
+word_prob<-exp(logbeta)
+word_attribute<-sapply(1:dim(word_prob)[2], function(y) which(word_prob[,y]==max(word_prob[,y])))
+#print(out$vocab)
+word_prob_sorted<-word_prob[,order(freq_vocab,decreasing = TRUE)]
+word_attribute_sorted<-word_attribute[order(freq_vocab,decreasing = TRUE)]
+aa<-data.frame(vocab_app,sort(freq_vocab,decreasing = TRUE),t(word_prob_sorted),word_attribute_sorted)
+write.csv(aa, "vocabulary2.csv")
+
+####
+# Analysis on chosen model run 
+# Table 1: most frequent and exclusive terms (FREX): 
+#label<-labelTopics(ncpPrevFit_ecogrowth, topics=NULL, n=10)
+labelTopics(ncpPrevFit_covid2, topics=NULL, n=10)
+dt.proportions_question2<-cbind(meta$Response.ID, make.dt(ncpPrevFit_covid2))
+meta_2<-meta
+```
+
+
+```{r, echo=FALSE}
+
+# for (topic_i in 1){
+#   for (thought_i in 1:20){
+#     c<-vocab[docs[findThoughts(ncpPrevFit_climpolicy, texts=meta$Text.CarbonTaxPolicy, n=20,topics=topic_i)$index[[1]]][[thought_i]][1,]]
+#     print(c)
+#   }
+# }
+
+meta$original<-as.character(meta$original)
+# Table 2: responses that are highly associated with topics
+nk<-10
+for (ci in 1:Kchoice2){
+  cii<-ci+1
+  thoughts1<-findThoughts(ncpPrevFit_covid2, texts=meta$original, n=nk, topics=ci)$docs[[1]]
+  topic_proportions<-as.matrix(make.dt(ncpPrevFit_covid2))[findThoughts(ncpPrevFit_covid2, texts=meta$original, n=nk,topics=ci)$index[[1]],cii]
+  
+  message("10 representative responses with high prevalence together with the values of those prevalences and words being   analyzed (i.e. excluding rare words dropped out from analysis) of Topic :")
+  print(ci)
+  print(thoughts1[1:nk])
+   print(topic_proportions)
+}
+
+```
+
+```{r, echo=FALSE}
+
+vocab_valence_public <- read.csv("vocabulary2_translated_corrected.csv", header=T, sep=",")
+
+sort_index<-sapply(1:length(out$vocab), function(x) which(vocab_valence_public$vocab_app==out$vocab[x]))
+
+vocab_valence_public$English.translation_sorted<-vocab_valence_public$English.translation[sort_index]
+
+vocab_valence_public<-data.frame(out$vocab,vocab_valence_public$English.translation_sorted)
+
+
+ncpPrevFit_covid2_translated<-ncpPrevFit_covid2
+ncpPrevFit_covid2_translated$vocab<-vocab_valence_public$vocab_valence_public.English.translation_sorted
+
+
+logbeta<-ncpPrevFit_covid2$beta$logbeta[[1]]
+word_prob<-exp(logbeta)
+word_attribute<-sapply(1:dim(word_prob)[2], function(y) which(word_prob[,y]==max(word_prob[,y])))
+#print(out$vocab)
+ 
+# Figures
+# Co-variation with demographics and concern
+# Generate education binary: university or not
+# univdummy <- as.numeric(meta$edu3==3)
+# print(univdummy)  
+# summary(univdummy)
+# table(meta$edu3, univdummy)
+# meta$univdummy <- univdummy
+
+# meta$age<- as.numeric(meta$age)
+#following https://github.com/bstewart/stm/blob/master/R/labelTopics.R
+
+logbeta <- ncpPrevFit_covid2$beta$logbeta[[1]]
+wordcounts <- ncpPrevFit_covid2$dim$wcounts$x
+frexlabels <-calcfrex(logbeta, 0, wordcounts)
+problabels<-apply(logbeta, 1, order, decreasing=TRUE)
+# set.seed(1234)
+# wordcloud(words = out$vocab, freq = problabels[,1],scale=c(3,.1), min.freq = 0,
+#           max.words=20, random.order=FALSE, rot.per=0.5,
+#           colors=frexlabels[,1]) 
+# shadesOfGrey <- colorRampPalette(c("grey0", "grey100"))
+# fiftyGreys <- shadesOfGrey(length(out$vocab))
+nb.cols <- length(out$vocab)
+# threshold<-15
+# mycolors <- c(rep("#FFFFE5",length(out$vocab)-threshold),colorRampPalette(brewer.pal(8, "YlOrBr"))(threshold)) #heat.colors(10) rev(heat.colors(50))
+threshold<-100
+mycolors <- c(rep("#FFFFE5",length(out$vocab)-threshold),colorRampPalette(rev(heat.colors(100)))(threshold)) #heat.colors(10) rev(heat.colors(50))
+
+pal<-colorRampPalette(c("blue", "red"))
+mycolorsRB<-c(rep("darkblue",length(out$vocab)-threshold),pal(threshold))
+
+vec<-matrix(0,length(out$vocab),Kchoice2)
+for (j in 1:Kchoice2){
+  jj<-length(out$vocab)
+  for (i in 1:length(out$vocab)){
+    vec[frexlabels[i,j],j]<-jj
+    jj<-jj-1
+  }
+}
+
+par(mfrow = c(4, 4) ,mar=c(1,2,1,1)) 
+add_vector<-colSums(ncpPrevFit_covid2$theta)/sum(ncpPrevFit_covid2$theta)*10#c(0,0,0,1)
+equal_vector<-matrix(mean(add_vector),Kchoice2,1)*1.8#c(0,0,0,1)
+
+#vector to normalize fonts between wordclouds
+# set.seed(1)
+# for (ci in 1:Kchoice2){
+# cloud(ncpPrevFit_covid2, topic = ci, max.words = 30,scale=c(3,.1)*add_vector[ci],rot.per=0,random.order=FALSE)#,colors=fiftyGreys[frexlabels[,1]])
+# title(tiopiclabel2[ci])
+# }
+# par(mfrow = c(4, 4) ,mar=c(1,2,1,1)) 
+# set.seed(1)
+# for (ci in 1:Kchoice2){
+# cloud(ncpPrevFit_covid2, topic = ci, max.words = 30,scale=c(3,.1)*equal_vector[ci],rot.per=0,random.order=FALSE)#,colors=fiftyGreys[frexlabels[,1]])
+# title(tiopiclabel2[ci])
+# }
+detach("package:stm", unload = TRUE)
+library(stm)
+
+set.seed(1)
+par(mfrow = c(4, 3) ,mar=c(1,2,1,1)) 
+for (ci in 1:Kchoice2){
+cloud(ncpPrevFit_covid2, topic = ci, max.words = 30,scale=c(1.5,.3)*add_vector[ci],colors=mycolors[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+title(tiopiclabel2[ci])
+box("figure", col="black", lwd = 5)
+}
+par(mfrow = c(4, 3) ,mar=c(1,2,1,1)) 
+set.seed(1)
+for (ci in 1:Kchoice2){
+cloud(ncpPrevFit_covid2, topic = ci, max.words = 30,scale=c(1.5,.3)*equal_vector[ci],colors=mycolors[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+title(tiopiclabel2[ci])
+box("figure", col="black", lwd = 5)
+}
+
+equal_vector<-equal_vector+c(.3,.3,.2,0,1,1,1,1,.5,0,1,1)
+
+par(mfrow = c(3, 4) ,mar=c(1,2,1,1)) 
+set.seed(1)
+for (ci in 1:Kchoice2){
+cloud(ncpPrevFit_covid2_translated, topic = ci, max.words = 30,scale=c(1.5,.3)*equal_vector[ci]*1.7,colors=mycolors[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+title(tiopiclabel2[ci], cex=1.2)
+box("figure", col="black", lwd = 2)
+}
+# set.seed(1)
+# par(mfrow = c(4, 4) ,mar=c(1,2,1,1)) 
+# for (ci in 1:Kchoice2){
+# cloud(ncpPrevFit_covid2, topic = ci, max.words = 30,scale=c(3,.1)*add_vector[ci],colors=mycolorsRB[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+# title(tiopiclabel2[ci])
+# box("figure", col="black", lwd = 5)
+# }
+# par(mfrow = c(4, 4) ,mar=c(1,2,1,1)) 
+# set.seed(1)
+# for (ci in 1:Kchoice2){
+# cloud(ncpPrevFit_covid2, topic = ci, max.words = 30,scale=c(3,.1)*equal_vector[ci],colors=mycolorsRB[vec[,ci]],random.order=FALSE, random.color=FALSE, ordered.colors=TRUE,rot.per=0)
+# title(tiopiclabel2[ci])
+# box("figure", col="black", lwd = 5)
+# }
+```
+
+```{r, echo=FALSE}
+# Figure 1: Topical prevalence over co-variates
+ViF2<-matrix(0,10,12)
+for (topic_id in 1:12){
+  model2 <- lm(ncpPrevFit_covid2$theta[,1] ~Age + Gender + Education +ClimateThreat +  PerceivedThreat_Covid + OverallExperience_Covid + HHIncome_Confinement + Acceptance_CT + COVID_people_close + Evaluation_Citizens_Covid, data = meta)
+  summary(model2)
+  ViF2[,topic_id]<-car::vif(model2)
+}
+prep <- estimateEffect(1:Kchoice2 ~ Age + Gender + Education +ClimateThreat +  PerceivedThreat_Covid + OverallExperience_Covid + HHIncome_Confinement + Acceptance_CT + COVID_people_close + Evaluation_Citizens_Covid,
+                         #Age,#+meta$Perceived.CarbonTaxKnowledge +meta$CT.Acceptability, 
+                       ncpPrevFit_covid2,
+                       meta=meta, 
+                       uncertainty = "Global")
+
+summary(prep)
+
+colors_topics<-c("indianred4","blue","magenta","orange","red","cyan","lawngreen","yellow","forestgreen","darkslateblue","olivedrab","khaki4","coral","grey","aquamarine","bisque")
+```
+```{r, echo=FALSE}
+
+# ClimateThreat +  PerceivedThreat_Covid + OverallExperience_Covid + HHIncome_Confinement + Acceptance_CT + COVID_government_close + Evaluation_Government_Covid
+
+par(mfrow = c(2, 4) ,mar=c(4,4,1,2),cex=1.05)
+plot.estimateEffect(prep,
+                    xlab="Age",
+                    covariate = "Age",
+                    topics = c(1,4,9,10,12),
+                    model=ncpPrevFit_covid2,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(1,4,9,10,12)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.3),
+                    linecol=colors_topics[c(1,4,9,10,12)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+
+)
+
+
+plot.estimateEffect(prep,
+                    xlab="Gender",
+                    covariate = "Gender",
+                    topics = c(4,5,7,9),
+                    model=ncpPrevFit_covid2,
+                    method="difference",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(4,5,7,9)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    cov.value1 = 1,cov.value2 = 2,
+                    xlim=c(-0.2,0.1),
+                    linecol=colors_topics[c(4,5,7,9)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+
+
+
+plot.estimateEffect(prep,
+                    xlab="Education",
+                    covariate = "Education",
+                    topics = c(2,5,10),
+                    model=ncpPrevFit_covid2,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(2,5,10)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.3),
+                    linecol=colors_topics[c(2,5,10)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+plot.estimateEffect(prep,
+                    xlab="Threat from climate change",
+                    covariate = "ClimateThreat",
+                    topics = c(1,3,6,8,10,12),
+                    model=ncpPrevFit_covid2,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(1,3,6,8,10,12)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.3),
+                    linecol=colors_topics[c(1,3,6,8,10,12)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+plot.estimateEffect(prep,
+                    xlab="Threat from COVID-19",
+                    covariate = "PerceivedThreat_Covid",
+                    topics = c(3,4,6,7),
+                    model=ncpPrevFit_covid2,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(3,4,6,7)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.3),
+                    linecol=colors_topics[c(3,4,6,7)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+plot.estimateEffect(prep,
+                    xlab="Experience with COVID-19",
+                    covariate = "OverallExperience_Covid",
+                    topics = c(6,9),
+                    model=ncpPrevFit_covid2,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(6,9)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.3),
+                    linecol=colors_topics[c(6,9)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+
+plot.estimateEffect(prep,
+                    xlab="Income change",
+                    covariate = "HHIncome_Confinement",
+                    topics = c(1),
+                    model=ncpPrevFit_covid2,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(1)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.3),
+                    linecol=colors_topics[c(1)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+plot.estimateEffect(prep,
+                    xlab="Carbon tax acceptance",
+                    covariate = "Acceptance_CT",
+                    topics = c(2,8,9,11),
+                    model=ncpPrevFit_covid2,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(2,8,9,11)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.3),
+                    linecol=colors_topics[c(2,8,9,11)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+plot.estimateEffect(prep,
+                    xlab="COVID_people_close",
+                    covariate = "COVID_people_close", 
+                    topics = c(1,3,5,7:12),
+                    model=ncpPrevFit_covid2,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(1,3,5,7:12)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.3),
+                    linecol=colors_topics[c(1,3,5,7:12)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+plot.estimateEffect(prep,
+                    xlab="Evaluation_Citizens_Covid",
+                    covariate = "Evaluation_Citizens_Covid",
+                    topics = c(2,7),
+                    model=ncpPrevFit_covid2,
+                    method="continuous",
+                    labeltype="custom",
+                    custom.labels=tiopiclabel2[c(2,7)],
+                    # custom.labels=c("Attribution", "Future/Impact"),
+                    # custom.labels=c("1", "2", "3", "4"),
+                    ylim=c(0,.3),
+                    linecol=colors_topics[c(2,7)],
+                    ylab="Expected topic prevalence",ci.level=0.01
+)
+```
+
+
+
+
+
+
+
+now showing how prevalences of topics correlate between each other. First for each question separately and then between them
+
+
+```{r, echo=FALSE}
+#sort out those respondents whose open answers we can analyse for both questions
+dt.proportions_question1_overlap<-as.matrix(dt.proportions_question1[dt.proportions_question1$V1 %in% intersect(dt.proportions_question1$V1,dt.proportions_question2$V1),3:(Kchoice+2)])
+
+dt.proportions_question2_overlap<-as.matrix(dt.proportions_question2[dt.proportions_question2$V1 %in% intersect(dt.proportions_question1$V1,dt.proportions_question2$V1),3:(Kchoice2+2)])
+
+
+TopicCorrMatrix1<-matrix(0,Kchoice,Kchoice)
+
+
+for (i in 1:Kchoice){
+  
+  for (j in 1:Kchoice){
+    
+    TopicCorrMatrix1[i,j]<-cor(dt.proportions_question1_overlap[,i],dt.proportions_question1_overlap[,j])
+    
+  }
+}
+
+
+library(corrplot)
+rownames(TopicCorrMatrix1)<-tiopiclabel
+
+colnames(TopicCorrMatrix1)<-c("1T1","1T2","1T3","1T4","1T5","1T6","1T7","1T8","1T9","1T10","1T11","1T12","1T13")
+
+
+TopicCorrMatrix1<-TopicCorrMatrix1-diag(Kchoice)
+corrplot(TopicCorrMatrix1, is.corr = FALSE, order="hclust", method = "square",type = "upper",tl.cex=0.8,tl.col = "black",cl.lim = c(-1, 1),col=colorRampPalette(c("blue","white","red"))(200))
+
+#png('CorrelationMatrix1.png',width = 12, height = 6, units = 'in', res = 1000)
+#corrplot(TopicCorrMatrix1, is.corr = FALSE, order="hclust", method = "square",tl.cex=1.2,tl.col = "black",cl.lim = c(-1, 1),col=colorRampPalette(c("blue","white","red"))(200))
+#dev.off()
+
+TopicCorrMatrix2<-matrix(0,Kchoice2,Kchoice2)
+
+for (i in 1:Kchoice2){
+  
+  for (j in 1:Kchoice2){
+    
+    TopicCorrMatrix2[i,j]<-cor(dt.proportions_question2_overlap[,i],dt.proportions_question2_overlap[,j])
+    
+  }
+}
+
+
+
+library(corrplot)
+rownames(TopicCorrMatrix2)<-tiopiclabel2
+
+
+colnames(TopicCorrMatrix2)<-c("2T1","2T2","2T3","2T4","2T5","2T6","2T7","2T8","2T9","2T10","2T11","2T12")
+
+TopicCorrMatrix2<-TopicCorrMatrix2-diag(Kchoice2)
+#corrplot(TopicCorrMatrix2, is.corr = FALSE, method = "square",tl.cex=1,tl.col = "black",cl.lim = c(-.5, .5),col=colorRampPalette(c("blue","white","red"))(200))
+#png('CorrelationMatrix2.png',width = 12, height = 6, units = 'in', res = 1000)
+corrplot(TopicCorrMatrix2, is.corr = FALSE, order="hclust",type = "upper", method = "square",tl.cex=0.8,tl.col = "black",cl.lim = c(-1, 1),col=colorRampPalette(c("blue","white","red"))(200))
+#dev.off()
+
+TopicCorrMatrix<-matrix(0,Kchoice,Kchoice2)
+
+library(Hmisc)
+ii<-1
+
+for (i in c(8,9,13,7,12,6,3,5,1,10,2,4,11)){
+  jj<-1
+  for (j in c(5,8,6,7,1,2,12,10,3,9,4,11)){
+
+    TopicCorrMatrix[ii,jj]<-cor(dt.proportions_question1_overlap[,i],dt.proportions_question2_overlap[,j])
+    jj<-jj+1
+  }
+  ii<-ii+1
+
+}
+
+library(corrplot)
+rownames(TopicCorrMatrix)<-tiopiclabel[c(8,9,13,7,12,6,3,5,1,10,2,4,11)]
+
+colnames(TopicCorrMatrix)<-tiopiclabel2[c(5,8,6,7,1,2,12,10,3,9,4,11)]
+#12,1,6,4,9,2,10,11,8,7,14,3,5,13
+#png('CorrelationMatrix3.png',width = 12, height = 6, units = 'in', res = 1000)
+par(mfrow = c(1, 1) ,mar=c(4,4,1,2))
+corrplot(TopicCorrMatrix, is.corr = FALSE, method = "square",tl.cex=0.8,tl.col = "black",cl.lim = c(-1, 1), col=colorRampPalette(c("blue","white","red"))(200))
+#dev.off()
+```
+And here is sth NEW:
+given that the open questions follow the closed ones, it is interesting to show better how the topics correspond to answers on closed question.
+I plot the positioning of topics where coordinates are the average responses of people on the two closed questions (i.e. how covid affected actions of people and government wrt climate change). The two colors indicate what questions are discussed and the sizes of bubbles - the percent of responses  for each of the topics. 
+Results seem logical
+
+```{r, echo=FALSE}
+#sort out those respondents whose open answers we can analyse for both questions
+size<-colSums(ncpPrevFit_covid1$theta)/sum(ncpPrevFit_covid1$theta)
+
+coordinates<-matrix(0,2,Kchoice)
+for (col_i in 1:Kchoice){
+  col_ii<-col_i+2
+coordinates[1,col_i]<-sum(as.matrix(dt.proportions_question1)[,col_ii]*meta_1$COVID_government_close)*Kchoice/length(meta_1$COVID_government_close)/size[col_i]*mean(size)
+
+coordinates[2,col_i]<-sum(as.matrix(dt.proportions_question1)[,col_ii]*meta_1$COVID_people_close)*Kchoice/length(meta_1$COVID_government_close)/size[col_i]*mean(size)
+}
+
+
+topics = data.frame(t(coordinates), 
+                 size,tiopiclabel,rep("First (about government)",Kchoice))
+
+colnames(topics)[5]<-c("Question")
+
+size2<-colSums(ncpPrevFit_covid2$theta)/sum(ncpPrevFit_covid2$theta)
+
+coordinates2<-matrix(0,2,Kchoice2)
+for (col_i in 1:Kchoice2){
+  col_ii<-col_i+2
+coordinates2[1,col_i]<-sum(as.matrix(dt.proportions_question2)[,col_ii]*meta_2$COVID_government_close)*Kchoice2/length(meta_2$COVID_government_close)/size2[col_i]*mean(size2)
+
+coordinates2[2,col_i]<-sum(as.matrix(dt.proportions_question2)[,col_ii]*meta_2$COVID_people_close)*Kchoice2/length(meta_2$COVID_people_close)/size2[col_i]*mean(size2)
+}
+
+
+topics2 = data.frame(t(coordinates2), 
+                 size2,tiopiclabel2,rep("Second (about people)",Kchoice2))
+colnames(topics2)[3:5]<-c("size","tiopiclabel","Question")
+
+topicsAll<-rbind(topics,topics2)
+two_colors=c('darkorange2','firebrick')
+
+ggplot( topicsAll, aes( X1, X2 ) ) +
+               geom_point (aes( size = size, color=Question)) +
+              #geom_text(aes(label=tiopiclabel),size=4, nudge_x=0.15, nudge_y=0.03) +
+              scale_size( range = c(3,10)) +
+              theme_bw() +
+              theme( legend.position = "right", plot.title = element_text(hjust = 0.5)) +
+              geom_hline( yintercept = 3 ) +
+              geom_vline( xintercept = 3 ) +
+              ylab("How Covid-19 affected actions of people regarding climate change?") +
+              xlab("How Covid-19 affected actions of government regarding climate change?") +
+              scale_color_manual(values=two_colors, limits = c("First (about government)", "Second (about people)")) +#ggtitle ("Finland") +
+          coord_cartesian( xlim = c(2,3.55), ylim = c(2.1, 3.25))+
+ theme(axis.text = element_text(size = 20)) + 
+ theme(axis.title = element_text(size = 20))  + 
+  theme(legend.text = element_text(size = 20))
+
+```
+
+And here the same but now looking on the other two closed questions. But here the picture is less clear in my view...
+```{r, echo=FALSE}
+#sort out those respondents whose open answers we can analyse for both questions
+size<-colSums(ncpPrevFit_covid1$theta)/sum(ncpPrevFit_covid1$theta)
+
+coordinates<-matrix(0,2,Kchoice)
+for (col_i in 1:Kchoice){
+  col_ii<-col_i+2
+coordinates[1,col_i]<-sum(as.matrix(dt.proportions_question1)[,col_ii]*meta_1$Evaluation_Government_Covid)*Kchoice/length(meta_1$Evaluation_Government_Covid)/size[col_i]*mean(size)
+
+coordinates[2,col_i]<-sum(as.matrix(dt.proportions_question1)[,col_ii]*meta_1$Evaluation_Citizens_Covid)*Kchoice/length(meta_1$Evaluation_Citizens_Covid)/size[col_i]*mean(size)
+}
+
+
+topics = data.frame(t(coordinates), 
+                 size,tiopiclabel,rep("First (about government)",Kchoice))
+
+colnames(topics)[5]<-c("Question")
+
+size2<-colSums(ncpPrevFit_covid2$theta)/sum(ncpPrevFit_covid2$theta)
+
+coordinates2<-matrix(0,2,Kchoice2)
+for (col_i in 1:Kchoice2){
+  col_ii<-col_i+2
+coordinates2[1,col_i]<-sum(as.matrix(dt.proportions_question2)[,col_ii]*meta_2$Evaluation_Government_Covid)*Kchoice2/length(meta_2$Evaluation_Government_Covid)/size2[col_i]*mean(size2)
+
+coordinates2[2,col_i]<-sum(as.matrix(dt.proportions_question2)[,col_ii]*meta_2$Evaluation_Citizens_Covid)*Kchoice2/length(meta_2$Evaluation_Citizens_Covid)/size2[col_i]*mean(size2)
+}
+
+
+topics2 = data.frame(t(coordinates2), 
+                 size2,tiopiclabel2,rep("Second (about people)",Kchoice2))
+colnames(topics2)[3:5]<-c("size","tiopiclabel","Question")
+
+topicsAll<-rbind(topics,topics2)
+two_colors=c('darkorange2','firebrick')
+
+ggplot( topicsAll, aes( X1, X2 ) ) +
+               geom_point (aes( size = size, color=Question)) +
+              #geom_text(aes(label=tiopiclabel), size=4, nudge_x=0.15, nudge_y=0.005) +
+              scale_size( range = c(3,10)) +
+              theme_bw() +
+              theme( legend.position = "right", plot.title = element_text(hjust = 0.5)) +
+              geom_hline( yintercept = 3 ) +
+              geom_vline( xintercept = 3 ) +
+              ylab("How do you evaluate people's collaboration in fighting Covid-19?") +
+              xlab("How do you evaluate government in fighting Covid-19?") +
+              scale_color_manual(values=two_colors, limits = c("First (about government)", "Second (about people)")) +#ggtitle ("Finland") +
+          coord_cartesian( xlim = c(2.2,3.5), ylim = c(3.2, 3.5))+
+ theme(axis.text = element_text(size = 20)) + 
+ theme(axis.title = element_text(size = 20))  + 
+  theme(legend.text = element_text(size = 20)) 
+
+```
